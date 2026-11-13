@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Sinus va Kosinus Vizualizatsiyasi</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #090d16;
+            font-family: 'Inter', sans-serif;
+            color: white;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            touch-action: none;
+        }
+        /* Custom Range Slider */
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.15);
+            height: 6px;
+            border-radius: 999px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #38bdf8;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.8);
+            transition: transform 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+    </style>
+</head>
+<body class="bg-[#090d16] text-white antialiased">
+
+    <!-- Glassmorphic UI Overlay -->
+    <div class="fixed top-4 left-4 sm:top-6 sm:left-6 z-10 w-[calc(100vw-2rem)] max-w-[310px] bg-slate-900/75 backdrop-blur-xl p-5 rounded-2xl border border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.65)]">
+        <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-extrabold tracking-tight text-sky-400 flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse"></span>
+                3D Trigonometriya
+            </h2>
+            <span class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/5 text-slate-400 border border-white/5">
+                R = 2
+            </span>
+        </div>
+
+        <!-- Real-time Values -->
+        <div class="space-y-2.5 text-sm">
+            <div class="flex justify-between items-center bg-white/[0.03] px-3 py-2 rounded-xl border border-white/5">
+                <span class="text-slate-300 font-medium">Burchak (θ):</span>
+                <span id="angleVal" class="font-mono font-bold text-base text-yellow-400">0°</span>
+            </div>
+            
+            <div class="flex justify-between items-center bg-sky-500/10 px-3 py-2 rounded-xl border border-sky-400/20">
+                <span class="text-sky-200 font-medium">sin(θ) <span class="text-xs opacity-75">[Balandlik]</span>:</span>
+                <span id="sinVal" class="font-mono font-bold text-base text-sky-400">0.00</span>
+            </div>
+            
+            <div class="flex justify-between items-center bg-rose-500/10 px-3 py-2 rounded-xl border border-rose-400/20">
+                <span class="text-rose-200 font-medium">cos(θ) <span class="text-xs opacity-75">[Kenglik]</span>:</span>
+                <span id="cosVal" class="font-mono font-bold text-base text-rose-500">1.00</span>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="mt-4 pt-4 border-t border-white/10 space-y-3">
+            <div>
+                <div class="flex justify-between text-xs text-slate-400 mb-1.5 font-medium">
+                    <label for="speedSlider">Aylanish tezligi</label>
+                    <span id="speedDisplay" class="text-sky-400 font-mono">1.0x</span>
+                </div>
+                <input type="range" id="speedSlider" min="0" max="0.08" step="0.005" value="0.025" class="w-full">
+            </div>
+
+            <div class="flex gap-2 pt-1">
+                <button id="toggleBtn" class="flex-1 py-2.5 px-4 bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 active:scale-[0.98] text-white text-xs sm:text-sm font-bold rounded-xl shadow-lg shadow-blue-600/25 transition-all cursor-pointer">
+                    Pauza / Davom etish
+                </button>
+                <button id="resetCamBtn" title="Kamerani tiklash" class="p-2.5 bg-white/5 hover:bg-white/10 active:scale-[0.95] text-slate-300 rounded-xl border border-white/10 transition-all cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Hint -->
+    <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none w-max max-w-[90vw] text-center">
+        <span class="inline-block px-4 py-1.5 rounded-full bg-slate-900/70 backdrop-blur-md border border-white/10 text-slate-400 text-xs font-medium shadow-lg">
+            Sichqoncha yoki barmoq bilan aylantiring • Yaqinlashtiring
+        </span>
+    </div>
+
+    <!-- Three.js & OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        window.onload = function () {
+            // 1. Sahna, Kamera va Renderer sozlamalari
+            const scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x090d16, 0.032);
+
+            const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const defaultCamPos = new THREE.Vector3(6.2, 4.4, 8.2);
+            const defaultTarget = new THREE.Vector3(0, 0, -3.5);
+            camera.position.copy(defaultCamPos);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.body.appendChild(renderer.domElement);
+
+            // 2. OrbitControls (Sichqoncha va Touch boshqaruvi)
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.06;
+            controls.target.copy(defaultTarget);
+
+            // 3. Yorug'lik manbalari
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const pointLight = new THREE.PointLight(0x38bdf8, 1.8, 50);
+            pointLight.position.set(5, 6, 5);
+            scene.add(pointLight);
+
+            const pointLightRed = new THREE.PointLight(0xf43f5e, 1.2, 50);
+            pointLightRed.position.set(-5, -4, 3);
+            scene.add(pointLightRed);
+
+            // 4. Koordinata to'ri (Grid Helper)
+            const gridHelper = new THREE.GridHelper(24, 24, 0x1e293b, 0x0f172a);
+            gridHelper.position.y = -2.3;
+            gridHelper.position.z = -4;
+            scene.add(gridHelper);
+
+            // Asosiy parametrlar
+            const R = 2; // Birlik aylana radiusi
+            const waveLength = 13; // Z o'qi bo'ylab to'lqin uzunligi
+            const numPoints = 280; // To'lqin silliqligi uchun nuqtalar soni
+
+            // 5. Birlik Aylana (Z = 0 tekislikda)
+            const circleGeo = new THREE.RingGeometry(R - 0.035, R + 0.035, 72);
+            const circleMat = new THREE.MeshBasicMaterial({ color: 0x475569, side: THREE.DoubleSide });
+            const circleMesh = new THREE.Mesh(circleGeo, circleMat);
+            scene.add(circleMesh);
+
+            // Ichki shaffof disk (vizual chuqurlik uchun)
+            const diskGeo = new THREE.CircleGeometry(R, 72);
+            const diskMat = new THREE.MeshBasicMaterial({ color: 0x1e293b, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
+            scene.add(new THREE.Mesh(diskGeo, diskMat));
+
+            // 6. Koordinata o'qlari (X, Y va Z)
+            const axesMat = new THREE.LineBasicMaterial({ color: 0x334155 });
+            const xAxisGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-2.6, 0, 0), new THREE.Vector3(2.6, 0, 0)]);
+            const yAxisGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -2.6, 0), new THREE.Vector3(0, 2.6, 0)]);
+            const zAxisGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0.5), new THREE.Vector3(0, 0, -waveLength)]);
+            scene.add(new THREE.Line(xAxisGeo, axesMat));
+            scene.add(new THREE.Line(yAxisGeo, axesMat));
+            scene.add(new THREE.Line(zAxisGeo, axesMat));
+
+            // 7. Aylanuvchi sariq nuqta va uning glow effekti
+            const dotGeo = new THREE.SphereGeometry(0.14, 20, 20);
+            const dotMat = new THREE.MeshStandardMaterial({
+                color: 0xfacc15,
+                emissive: 0xfacc15,
+                emissiveIntensity: 0.85,
+                roughness: 0.2
+            });
+            const dotMesh = new THREE.Mesh(dotGeo, dotMat);
+            scene.add(dotMesh);
+
+            // Radius vektori (Markazdan sariq nuqtagacha)
+            const radiusMat = new THREE.LineBasicMaterial({ color: 0xfacc15 });
+            const radiusGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(R, 0, 0)]);
+            const radiusLine = new THREE.Line(radiusGeo, radiusMat);
+            scene.add(radiusLine);
+
+            // 8. Aylana ichidagi proyeksiyalar (Sinus - Ko'k, Kosinus - Qizil)
+            const sinProjMat = new THREE.LineBasicMaterial({ color: 0x38bdf8 });
+            const sinProjGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)]);
+            const sinProjLine = new THREE.Line(sinProjGeo, sinProjMat);
+            scene.add(sinProjLine);
+
+            const cosProjMat = new THREE.LineBasicMaterial({ color: 0xf43f5e });
+            const cosProjGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)]);
+            const cosProjLine = new THREE.Line(cosProjGeo, cosProjMat);
+            scene.add(cosProjLine);
+
+            // 9. Z o'qi bo'ylab 3D Sinus va Kosinus to'lqinlari
+            const sinWavePoints = [];
+            const cosWavePoints = [];
+            for (let i = 0; i < numPoints; i++) {
+                const z = -i * (waveLength / numPoints);
+                sinWavePoints.push(new THREE.Vector3(0, 0, z));
+                cosWavePoints.push(new THREE.Vector3(R, 0, z));
+            }
+
+            // Sinus to'lqini (Ko'k - Y o'qi bo'ylab tebranadi)
+            const sinWaveGeo = new THREE.BufferGeometry().setFromPoints(sinWavePoints);
+            const sinWaveMat = new THREE.LineBasicMaterial({ color: 0x38bdf8 });
+            const sinWaveLine = new THREE.Line(sinWaveGeo, sinWaveMat);
+            scene.add(sinWaveLine);
+
+            // Kosinus to'lqini (Qizil - X o'qi bo'ylab tebranadi)
+            const cosWaveGeo = new THREE.BufferGeometry().setFromPoints(cosWavePoints);
+            const cosWaveMat = new THREE.LineBasicMaterial({ color: 0xf43f5e });
+            const cosWaveLine = new THREE.Line(cosWaveGeo, cosWaveMat);
+            scene.add(cosWaveLine);
+
+            // To'lqin boshidagi bog'lovchi chiziqlar (Nuqtadan to'lqin boshiga)
+            const sinBridgeMat = new THREE.LineDashedMaterial({ color: 0x38bdf8, dashSize: 0.1, gapSize: 0.08, transparent: true, opacity: 0.6 });
+            const sinBridgeGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)]);
+            const sinBridgeLine = new THREE.Line(sinBridgeGeo, sinBridgeMat);
+            scene.add(sinBridgeLine);
+
+            const cosBridgeMat = new THREE.LineDashedMaterial({ color: 0xf43f5e, dashSize: 0.1, gapSize: 0.08, transparent: true, opacity: 0.6 });
+            const cosBridgeGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)]);
+            const cosBridgeLine = new THREE.Line(cosBridgeGeo, cosBridgeMat);
+            scene.add(cosBridgeLine);
+
+            // UI Elementlari
+            const angleEl = document.getElementById('angleVal');
+            const sinEl = document.getElementById('sinVal');
+            const cosEl = document.getElementById('cosVal');
+            const speedSlider = document.getElementById('speedSlider');
+            const speedDisplay = document.getElementById('speedDisplay');
+            const toggleBtn = document.getElementById('toggleBtn');
+            const resetCamBtn = document.getElementById('resetCamBtn');
+
+            let angle = 0;
+            let isPlaying = true;
+            let sinHistory = new Array(numPoints).fill(0);
+            let cosHistory = new Array(numPoints).fill(R);
+
+            // Tugmalar va Slayder hodisalari
+            toggleBtn.addEventListener('click', () => {
+                isPlaying = !isPlaying;
+                toggleBtn.textContent = isPlaying ? "Pauza / Davom etish" : "Davom ettirish ▶";
+            });
+
+            speedSlider.addEventListener('input', () => {
+                const ratio = (parseFloat(speedSlider.value) / 0.025).toFixed(1);
+                speedDisplay.textContent = ratio + "x";
+            });
+
+            resetCamBtn.addEventListener('click', () => {
+                camera.position.copy(defaultCamPos);
+                controls.target.copy(defaultTarget);
+                controls.update();
+            });
+
+            // Asosiy Animatsiya Sikli
+            function animate() {
+                requestAnimationFrame(animate);
+
+                if (isPlaying) {
+                    const speed = parseFloat(speedSlider.value);
+                    angle += speed;
+
+                    const cosVal = Math.cos(angle);
+                    const sinVal = Math.sin(angle);
+                    const x = cosVal * R;
+                    const y = sinVal * R;
+
+                    // Sariq nuqta va radius vektorini yangilash
+                    dotMesh.position.set(x, y, 0);
+                    radiusLine.geometry.setFromPoints([
+                        new THREE.Vector3(0, 0, 0),
+                        new THREE.Vector3(x, y, 0)
+                    ]);
+
+                    // Aylana ichidagi proyeksiyalar
+                    sinProjLine.geometry.setFromPoints([
+                        new THREE.Vector3(x, 0, 0),
+                        new THREE.Vector3(x, y, 0)
+                    ]);
+                    cosProjLine.geometry.setFromPoints([
+                        new THREE.Vector3(0, y, 0),
+                        new THREE.Vector3(x, y, 0)
+                    ]);
+
+                    // Nuqtadan to'lqin boshigacha yordamchi chiziqlar
+                    sinBridgeLine.geometry.setFromPoints([
+                        new THREE.Vector3(x, y, 0),
+                        new THREE.Vector3(0, y, 0)
+                    ]);
+                    sinBridgeLine.computeLineDistances();
+
+                    cosBridgeLine.geometry.setFromPoints([
+                        new THREE.Vector3(x, y, 0),
+                        new THREE.Vector3(x, 0, 0)
+                    ]);
+                    cosBridgeLine.computeLineDistances();
+
+                    // To'lqin tarixini siljitish
+                    sinHistory.unshift(y);
+                    sinHistory.pop();
+
+                    cosHistory.unshift(x);
+                    cosHistory.pop();
+
+                    const sinPos = sinWaveLine.geometry.attributes.position.array;
+                    const cosPos = cosWaveLine.geometry.attributes.position.array;
+
+                    for (let i = 0; i < numPoints; i++) {
+                        const z = -i * (waveLength / numPoints);
+
+                        // Sinus to'lqini Y o'qi bo'ylab
+                        sinPos[i * 3] = 0;
+                        sinPos[i * 3 + 1] = sinHistory[i];
+                        sinPos[i * 3 + 2] = z;
+
+                        // Kosinus to'lqini X o'qi bo'ylab
+                        cosPos[i * 3] = cosHistory[i];
+                        cosPos[i * 3 + 1] = 0;
+                        cosPos[i * 3 + 2] = z;
+                    }
+
+                    sinWaveLine.geometry.attributes.position.needsUpdate = true;
+                    cosWaveLine.geometry.attributes.position.needsUpdate = true;
+
+                    // UI raqamlarini yangilash
+                    const deg = Math.round((angle * 180 / Math.PI) % 360);
+                    angleEl.textContent = deg + '°';
+                    sinEl.textContent = sinVal.toFixed(2);
+                    cosEl.textContent = cosVal.toFixed(2);
+                }
+
+                controls.update();
+                renderer.render(scene, camera);
+            }
+
+            // Ekran o'lchami o'zgarganda moslashish
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+
+            animate();
+        };
+    </script>
+</body>
+</html>
